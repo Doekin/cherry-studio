@@ -2025,7 +2025,7 @@ __metadata:
 
 "@google/genai@patch:@google/genai@npm%3A1.0.1#~/.yarn/patches/@google-genai-npm-1.0.1-e26f0f9af7.patch":
   version: 1.0.1
-  resolution: "@google/genai@patch:@google/genai@npm%3A1.0.1#~/.yarn/patches/@google-genai-npm-1.0.1-e26f0f9af7.patch::version=1.0.1&hash=5b0ca9"
+  resolution: "@google/genai@patch:@google/genai@npm%3A1.0.1#~/.yarn/patches/@google-genai-npm-1.0.1-e26f0f9af7.patch::version=1.0.1&hash=b1e680"
   dependencies:
     google-auth-library: "npm:^9.14.2"
     ws: "npm:^8.18.0"
@@ -2033,7 +2033,7 @@ __metadata:
     zod-to-json-schema: "npm:^3.22.4"
   peerDependencies:
     "@modelcontextprotocol/sdk": ^1.11.0
-  checksum: 10c0/9033f188ba276468d4c7138b72062bf5187d41915eb97d91632562b59b5b8af8c830f663a277476f6a614084cac2c1037419d0539c3f1763c651a1a61a4d3674
+  checksum: 10c0/aa38b73de3d84944f51c1f45a3945ea7578b6660276ea748f2349ed42106edc5c81c08872f7fb62cd6e158fc0517283cfe9cdbcce806eee3b62439f60b82496a
   languageName: node
   linkType: hard
 
