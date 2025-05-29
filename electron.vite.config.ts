@@ -9,25 +9,7 @@ const visualizerPlugin = (type: 'renderer' | 'main') => {
 
 export default defineConfig({
   main: {
-    plugins: [
-      externalizeDepsPlugin({
-        exclude: [
-          '@cherrystudio/embedjs',
-          '@cherrystudio/embedjs-openai',
-          '@cherrystudio/embedjs-loader-web',
-          '@cherrystudio/embedjs-loader-markdown',
-          '@cherrystudio/embedjs-loader-msoffice',
-          '@cherrystudio/embedjs-loader-xml',
-          '@cherrystudio/embedjs-loader-pdf',
-          '@cherrystudio/embedjs-loader-sitemap',
-          '@cherrystudio/embedjs-libsql',
-          '@cherrystudio/embedjs-loader-image',
-          'p-queue',
-          'webdav'
-        ]
-      }),
-      ...visualizerPlugin('main')
-    ],
+    plugins: [externalizeDepsPlugin(), ...visualizerPlugin('main')],
     resolve: {
       alias: {
         '@main': resolve('src/main'),
@@ -37,11 +19,15 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
-        external: ['@libsql/client'],
+        external: ['@libsql/client', 'bufferutil', 'utf-8-validate'],
         output: {
           externalLiveBindings: false // 不加启动不了
         }
-      }
+      },
+      sourcemap: process.env.NODE_ENV === 'development'
+    },
+    optimizeDeps: {
+      noDiscovery: process.env.NODE_ENV === 'development'
     }
   },
   preload: {
@@ -50,6 +36,9 @@ export default defineConfig({
       alias: {
         '@shared': resolve('packages/shared')
       }
+    },
+    build: {
+      sourcemap: process.env.NODE_ENV === 'development'
     }
   },
   renderer: {
@@ -85,7 +74,9 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/renderer/index.html'),
-          miniWindow: resolve(__dirname, 'src/renderer/miniWindow.html')
+          miniWindow: resolve(__dirname, 'src/renderer/miniWindow.html'),
+          selectionToolbar: resolve(__dirname, 'src/renderer/selectionToolbar.html'),
+          selectionAction: resolve(__dirname, 'src/renderer/selectionAction.html')
         }
       }
     }

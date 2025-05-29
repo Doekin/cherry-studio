@@ -5,7 +5,8 @@ import {
   isSupportedFlexServiceTier,
   isSupportedModel,
   isSupportedReasoningEffortOpenAIModel,
-  isVisionModel
+  isVisionModel,
+  isWebSearchModel
 } from '@renderer/config/models'
 import { getStoreSetting } from '@renderer/hooks/useSettings'
 import i18n from '@renderer/i18n'
@@ -317,7 +318,7 @@ export abstract class BaseOpenAIProvider extends BaseProvider {
     const model = assistant.model || defaultModel
 
     const { contextCount, maxTokens, streamOutput } = getAssistantSettings(assistant)
-    const isEnabledBuiltinWebSearch = assistant.enableWebSearch
+    const isEnabledBuiltinWebSearch = assistant.enableWebSearch && isWebSearchModel(model)
 
     let tools: OpenAI.Responses.Tool[] = []
     const toolChoices: OpenAI.Responses.ToolChoiceTypes = {
@@ -351,7 +352,7 @@ export abstract class BaseOpenAIProvider extends BaseProvider {
     tools = tools.concat(extraTools)
 
     if (this.useSystemPromptForTools) {
-      systemMessageInput.text = buildSystemPrompt(systemMessageInput.text || '', mcpTools)
+      systemMessageInput.text = await buildSystemPrompt(systemMessageInput.text || '', mcpTools)
     }
     systemMessageContent.push(systemMessageInput)
     systemMessage.content = systemMessageContent
@@ -1088,7 +1089,8 @@ export abstract class BaseOpenAIProvider extends BaseProvider {
           {
             model: model.id,
             image: images,
-            prompt: content || ''
+            prompt: content || '',
+            ...this.getCustomParameters(assistant)
           },
           {
             signal,
@@ -1100,7 +1102,8 @@ export abstract class BaseOpenAIProvider extends BaseProvider {
           {
             model: model.id,
             prompt: content || '',
-            response_format: model.id.includes('gpt-image-1') ? undefined : 'b64_json'
+            response_format: model.id.includes('gpt-image-1') ? undefined : 'b64_json',
+            ...this.getCustomParameters(assistant)
           },
           {
             signal,
