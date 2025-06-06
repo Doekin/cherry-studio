@@ -84,7 +84,12 @@ const Markdown: FC<Props> = ({ block }) => {
         <CodeBlock {...props} id={getCodeBlockId(props?.node?.position?.start)} onSave={onSaveCodeBlock} />
       ),
       img: ImagePreview,
-      pre: (props: any) => <pre style={{ overflow: 'visible' }} {...props} />
+      pre: (props: any) => <pre style={{ overflow: 'visible' }} {...props} />,
+      p: (props) => {
+        const hasImage = props?.node?.children?.some((child: any) => child.tagName === 'img')
+        if (hasImage) return <div {...props} />
+        return <p {...props} />
+      }
     } as Partial<Components>
   }, [onSaveCodeBlock])
 
