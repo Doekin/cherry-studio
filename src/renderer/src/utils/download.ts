@@ -1,4 +1,4 @@
-export const download = (url: string, filename?: string) => {
+export const triggerDownloadDialog = (url: string, filename?: string) => {
   // 处理可直接通过 <a> 标签下载的 URL:
   // - 本地文件 ( file:// )
   // - 对象 URL ( blob: )
