@@ -9,20 +9,49 @@ import {
   ZoomInOutlined,
   ZoomOutOutlined
 } from '@ant-design/icons'
-import { triggerDownloadDialog } from '@renderer/utils/download'
+import { useSettings } from '@renderer/hooks/useSettings'
+import FileManager from '@renderer/services/FileManager'
+import { downloadImagesToFileStorage, triggerDownloadDialog } from '@renderer/utils/download'
 import { Dropdown, Image as AntImage, ImageProps as AntImageProps, Space } from 'antd'
 import { Base64 } from 'js-base64'
 import mime from 'mime'
-import React from 'react'
+import React, { useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import styled from 'styled-components'
 
+const processedImageUrls = new Set<string>()
+
 interface ImageViewerProps extends AntImageProps {
   src: string
+  onImageLocalized?: (localizedUrl: string, originalUrl: string) => Promise<void>
 }
 
-const ImageViewer: React.FC<ImageViewerProps> = ({ src, style, ...props }) => {
+const ImageViewer: React.FC<ImageViewerProps> = ({ src, style, onImageLocalized, ...props }) => {
   const { t } = useTranslation()
+  const { autoLocalizeImages } = useSettings()
+
+  const localizeImage = useCallback(
+    async (imageUrl: string) => {
+      if (processedImageUrls.has(imageUrl)) return
+      processedImageUrls.add(imageUrl)
+
+      const [downloadedFile] = await downloadImagesToFileStorage([imageUrl])
+
+      if (downloadedFile?.path) {
+        await FileManager.addFiles([downloadedFile])
+        const localFileUrl = new URL(downloadedFile.path, 'file:').href
+        onImageLocalized?.(localFileUrl, imageUrl)
+      }
+      processedImageUrls.delete(imageUrl)
+    },
+    [onImageLocalized]
+  )
+
+  useEffect(() => {
+    if (autoLocalizeImages && src.startsWith('http') && onImageLocalized) {
+      localizeImage(src)
+    }
+  }, [src, autoLocalizeImages, localizeImage, onImageLocalized])
 
   // 复制图片到剪贴板
   const handleCopyImage = async (src: string) => {
