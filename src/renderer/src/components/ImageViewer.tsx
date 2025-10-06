@@ -9,7 +9,7 @@ import {
   ZoomOutOutlined
 } from '@ant-design/icons'
 import { loggerService } from '@logger'
-import { download } from '@renderer/utils/download'
+import { triggerClientDownload } from '@renderer/utils/download'
 import type { ImageProps as AntImageProps } from 'antd'
 import { Dropdown, Image as AntImage, Space } from 'antd'
 import { Base64 } from 'js-base64'
@@ -85,7 +85,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ src, style, ...props }) => {
         key: 'download',
         label: t('common.download'),
         icon: <DownloadIcon size={size} />,
-        onClick: () => download(src)
+        onClick: () => triggerClientDownload(src)
       },
       {
         key: 'copy-image',
@@ -122,7 +122,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ src, style, ...props }) => {
               <ZoomInOutlined disabled={scale === 50} onClick={onZoomIn} />
               <UndoOutlined onClick={onReset} />
               <CopyOutlined onClick={() => handleCopyImage(src)} />
-              <DownloadOutlined onClick={() => download(src)} />
+              <DownloadOutlined onClick={() => triggerClientDownload(src)} />
             </ToolbarWrapper>
           )
         }}
