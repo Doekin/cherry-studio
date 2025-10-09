@@ -2563,6 +2563,7 @@ const migrateConfig = {
     try {
       addProvider(state, 'ovms')
       fixMissingProvider(state)
+      state.settings.autoLocalizeImages = settingsInitialState.autoLocalizeImages
       return state
     } catch (error) {
       logger.error('migrate 159 error', error as Error)

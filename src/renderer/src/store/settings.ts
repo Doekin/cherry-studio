@@ -148,6 +148,7 @@ export interface SettingsState {
   showModelNameInMarkdown: boolean
   showModelProviderInMarkdown: boolean
   thoughtAutoCollapse: boolean
+  autoLocalizeImages: boolean
   notionExportReasoning: boolean
   excludeCitationsInExport: boolean
   standardizeCitationsInExport: boolean
@@ -329,6 +330,7 @@ export const initialState: SettingsState = {
   showModelNameInMarkdown: false,
   showModelProviderInMarkdown: false,
   thoughtAutoCollapse: true,
+  autoLocalizeImages: false,
   notionExportReasoning: false,
   excludeCitationsInExport: false,
   standardizeCitationsInExport: false,
@@ -706,6 +708,9 @@ const settingsSlice = createSlice({
     setThoughtAutoCollapse: (state, action: PayloadAction<boolean>) => {
       state.thoughtAutoCollapse = action.payload
     },
+    setAutoLocalizeImages: (state, action: PayloadAction<boolean>) => {
+      state.autoLocalizeImages = action.payload
+    },
     setNotionExportReasoning: (state, action: PayloadAction<boolean>) => {
       state.notionExportReasoning = action.payload
     },
@@ -936,6 +941,7 @@ export const {
   setForceDollarMathInMarkdown,
   setUseTopicNamingForMessageTitle,
   setThoughtAutoCollapse,
+  setAutoLocalizeImages,
   setNotionExportReasoning,
   setExcludeCitationsInExport,
   setStandardizeCitationsInExport,
