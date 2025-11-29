@@ -2887,6 +2887,7 @@ const migrateConfig = {
   },
   '179': (state: RootState) => {
     try {
+      state.settings.autoLocalizeImages = settingsInitialState.autoLocalizeImages
       state.llm.providers.forEach((provider) => {
         switch (provider.id) {
           case SystemProviderIds.silicon:
