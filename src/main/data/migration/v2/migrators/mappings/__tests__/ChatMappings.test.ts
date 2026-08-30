@@ -38,6 +38,7 @@ import {
   buildMessageTree,
   estimateLegacyRequestCount,
   extractCitationReferences,
+  findActiveNodeId,
   mergeStats,
   normalizeStatus,
   type OldBlock,
@@ -83,7 +84,7 @@ describe('buildMessageTree', () => {
   it('groups multi-model responses under the user message', async () => {
     const messages = [
       msg('u1', 'user'),
-      msg('a1', 'assistant', { askId: 'u1', foldSelected: true }),
+      msg('a1', 'assistant', { askId: 'u1' }),
       msg('a2', 'assistant', { askId: 'u1' })
     ]
 
@@ -97,17 +98,62 @@ describe('buildMessageTree', () => {
     expect(tree.get('a1')!.siblingsGroupId).toBe(tree.get('a2')!.siblingsGroupId)
   })
 
-  it('links user message after multi-model group to foldSelected response', async () => {
+  it('links user message after multi-model group to the useful-marked response', async () => {
+    // v1 context selection: the user thumbs-upped a2 in a 3-model group
     const messages = [
       msg('u1', 'user'),
-      msg('a1', 'assistant', { askId: 'u1', foldSelected: true }),
+      msg('a1', 'assistant', { askId: 'u1' }),
+      msg('a2', 'assistant', { askId: 'u1', useful: true }),
+      msg('a3', 'assistant', { askId: 'u1' }),
+      msg('u2', 'user')
+    ]
+
+    const tree = buildMessageTree(messages)
+
+    // u2 should link to the useful response (a2), not the last member
+    expect(tree.get('u2')!.parentId).toBe('a2')
+  })
+
+  it('links user message after multi-model group to first member when no useful flag', async () => {
+    // v1 filterUsefulMessages kept the first member when none was marked useful
+    const messages = [
+      msg('u1', 'user'),
+      msg('a1', 'assistant', { askId: 'u1' }),
       msg('a2', 'assistant', { askId: 'u1' }),
       msg('u2', 'user')
     ]
 
     const tree = buildMessageTree(messages)
 
-    // u2 should link to the foldSelected response (a1)
+    // u2 should link to the first group member (a1), matching v1's context fallback
+    expect(tree.get('u2')!.parentId).toBe('a1')
+  })
+
+  it('prefers useful over foldSelected for thread anchoring', async () => {
+    const messages = [
+      msg('u1', 'user'),
+      msg('a1', 'assistant', { askId: 'u1', foldSelected: true }),
+      msg('a2', 'assistant', { askId: 'u1', useful: true }),
+      msg('u2', 'user')
+    ]
+
+    const tree = buildMessageTree(messages)
+
+    // useful is the context selection and wins; foldSelected is display-only
+    expect(tree.get('u2')!.parentId).toBe('a2')
+  })
+
+  it('ignores foldSelected when no useful flag exists (display-only state)', async () => {
+    const messages = [
+      msg('u1', 'user'),
+      msg('a1', 'assistant', { askId: 'u1' }),
+      msg('a2', 'assistant', { askId: 'u1', foldSelected: true }),
+      msg('u2', 'user')
+    ]
+
+    const tree = buildMessageTree(messages)
+
+    // Without useful, v1 context was the first member, regardless of fold view
     expect(tree.get('u2')!.parentId).toBe('a1')
   })
 
@@ -202,24 +248,7 @@ describe('buildMessageTree', () => {
     expect(tree.get('a1')!.siblingsGroupId).toBe(0)
   })
 
-  it('links user message after multi-model group with no foldSelected to last group member', async () => {
-    const messages = [
-      msg('u1', 'user'),
-      msg('a1', 'assistant', { askId: 'u1' }),
-      msg('a2', 'assistant', { askId: 'u1' }),
-      msg('u2', 'user')
-    ]
-
-    const tree = buildMessageTree(messages)
-
-    // Both responses are siblings under u1
-    expect(tree.get('a1')!.parentId).toBe('u1')
-    expect(tree.get('a2')!.parentId).toBe('u1')
-    // u2 should link to the last group member (a2), NOT to u1
-    expect(tree.get('u2')!.parentId).toBe('a2')
-  })
-
-  it('links user message after orphaned foldSelected group to the selected response', async () => {
+  it('links user message after orphaned group to its first member (foldSelected ignored)', async () => {
     const messages = [
       msg('prev', 'assistant'),
       msg('a1', 'assistant', { askId: 'deleted', foldSelected: true }),
@@ -232,8 +261,76 @@ describe('buildMessageTree', () => {
     // Orphaned siblings share 'prev' as parent
     expect(tree.get('a1')!.parentId).toBe('prev')
     expect(tree.get('a2')!.parentId).toBe('prev')
-    // u1 should link to foldSelected response a1
+    // u1 should link to the group's first member; foldSelected is display-only
     expect(tree.get('u1')!.parentId).toBe('a1')
+  })
+})
+
+// ============================================================================
+// findActiveNodeId
+// ============================================================================
+
+describe('findActiveNodeId', () => {
+  it('returns null for empty input', () => {
+    expect(findActiveNodeId([])).toBeNull()
+  })
+
+  it('returns the last message for a linear thread', () => {
+    const messages = [msg('u1', 'user'), msg('a1'), msg('u2', 'user'), msg('a2')]
+
+    expect(findActiveNodeId(messages)).toBe('a2')
+  })
+
+  it('returns the useful-marked response when the last turn is a multi-model group', () => {
+    // The v1 bug scenario: user thumbs-upped a2 (middle member) in a 3-model
+    // group; the active node must be a2, not the last sibling a3
+    const messages = [
+      msg('u1', 'user'),
+      msg('a1', 'assistant', { askId: 'u1' }),
+      msg('a2', 'assistant', { askId: 'u1', useful: true }),
+      msg('a3', 'assistant', { askId: 'u1' })
+    ]
+
+    expect(findActiveNodeId(messages)).toBe('a2')
+  })
+
+  it('returns the first group member when the last group has no useful flag', () => {
+    // v1 filterUsefulMessages kept the first member when none was marked useful
+    const messages = [
+      msg('u1', 'user'),
+      msg('a1', 'assistant', { askId: 'u1' }),
+      msg('a2', 'assistant', { askId: 'u1' })
+    ]
+
+    expect(findActiveNodeId(messages)).toBe('a1')
+  })
+
+  it('ignores foldSelected when the last group has no useful flag', () => {
+    const messages = [
+      msg('u1', 'user'),
+      msg('a1', 'assistant', { askId: 'u1' }),
+      msg('a2', 'assistant', { askId: 'u1', foldSelected: true })
+    ]
+
+    expect(findActiveNodeId(messages)).toBe('a1')
+  })
+
+  it('returns the trailing user message after a group', () => {
+    const messages = [
+      msg('u1', 'user'),
+      msg('a1', 'assistant', { askId: 'u1' }),
+      msg('a2', 'assistant', { askId: 'u1', useful: true }),
+      msg('u2', 'user')
+    ]
+
+    // The path to u2 passes through a2 via tree parenting
+    expect(findActiveNodeId(messages)).toBe('u2')
+  })
+
+  it('returns the single response for a single askId reference', () => {
+    const messages = [msg('u1', 'user'), msg('a1', 'assistant', { askId: 'u1' })]
+
+    expect(findActiveNodeId(messages)).toBe('a1')
   })
 })
 
