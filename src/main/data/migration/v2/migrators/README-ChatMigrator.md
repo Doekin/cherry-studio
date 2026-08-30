@@ -32,8 +32,9 @@ Redux deliberately clears `messages[]` to reduce storage size. The migrator merg
    - New: Tree via `parentId` + `siblingsGroupId`
 
 2. **Multi-model Responses**
-   - Old: `askId` links responses to user message, `foldSelected` marks active
-   - New: Shared `parentId` + non-zero `siblingsGroupId` groups siblings
+   - Old: `askId` links responses to user message, `useful` marks the context selection
+   - New: Shared `parentId` + non-zero `siblingsGroupId` groups siblings;
+     the useful-marked response anchors the thread (parenting + activeNodeId)
 
 3. **Block Inlining**
    - Old: `message.blocks: string[]` (IDs) + separate `message_blocks` table
@@ -84,7 +85,7 @@ Topic data is merged from Dexie + Redux before transformation:
 | Redux: (parent assistant.id) | `assistantId` | From `topicAssistantLookup` mapping |
 | (from Assistant) | `assistantMeta` | Generated from assistant entity |
 | Redux: `prompt` | `prompt` | Merged from Redux |
-| (computed) | `activeNodeId` | Smart selection: original active → foldSelected → last migrated |
+| (computed) | `activeNodeId` | Smart selection: original active → useful → foldSelected → last migrated |
 | (none) | `sortOrder` | 0 (new field) |
 | Redux: `pinned` | `isPinned` | Merged from Redux, renamed |
 | (none) | `pinnedOrder` | 0 (new field) |
@@ -113,7 +114,9 @@ Topic data is merged from Dexie + Redux before transformation:
 | `createdAt` | `createdAt` | ISO string → timestamp |
 | `updatedAt` | `updatedAt` | ISO string → timestamp |
 
-**Dropped fields**: `type` after converting `clear` to `data-clear`, `useful`, `enabledMCPs`, `agentSessionId`, `traceId` (span detail files are not part of the v1 chat migration source set), `providerMetadata`, `multiModelMessageStyle`, `askId` (replaced by parentId), `foldSelected` (replaced by siblingsGroupId)
+**Dropped fields**: `type` after converting `clear` to `data-clear`, `enabledMCPs`, `agentSessionId`, `traceId` (span detail files are not part of the v1 chat migration source set), `providerMetadata`, `multiModelMessageStyle`, `askId` (replaced by parentId), `foldSelected` (display-only tab state; v2 has no separate display selection)
+
+**`useful` is consumed, not dropped**: v1's context selection per multi-model group (thumbs-up) drives tree linking of follow-up user messages and `activeNodeId` — the useful-marked response, else the first group member, mirroring v1 `filterUsefulMessages`.
 
 ### Block Type Mapping
 

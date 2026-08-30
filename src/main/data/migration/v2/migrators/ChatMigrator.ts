@@ -26,8 +26,9 @@
  *    - New: Tree via `parentId` + `siblingsGroupId`
  *
  * 2. **Multi-model Responses**
- *    - Old: `askId` links responses to user message, `foldSelected` marks active
- *    - New: Shared `parentId` + non-zero `siblingsGroupId` groups siblings
+ *    - Old: `askId` links responses to user message, `useful` marks the context selection
+ *    - New: Shared `parentId` + non-zero `siblingsGroupId` groups siblings;
+ *      the useful-marked response anchors the thread (parenting + activeNodeId)
  *
  * 3. **Block → Parts**
  *    - Old: `message.blocks: string[]` (IDs) + separate `message_blocks` table
@@ -1174,20 +1175,23 @@ export class ChatMigrator extends BaseMigrator {
     }
 
     // Calculate activeNodeId using smart selection logic
-    // Priority: 1) Original activeNode if migrated, 2) foldSelected if migrated, 3) last migrated
+    // Priority: 1) Original activeNode if migrated, 2) useful if migrated, 3) foldSelected if migrated, 4) last migrated
     let activeNodeId: string | null = null
     if (newMessages.length > 0) {
       const migratedIds = new Set(newMessages.map((m) => m.id))
 
-      // Try to use the original active node (handles foldSelected for multi-model)
+      // Try to use the original active node (handles useful for multi-model context)
       const originalActiveId = findActiveNodeId(oldMessages)
       if (originalActiveId && migratedIds.has(originalActiveId)) {
         activeNodeId = originalActiveId
       } else {
-        // Original active was skipped; find a foldSelected among migrated messages
-        const foldSelectedMsg = oldMessages.find((m) => m.foldSelected && migratedIds.has(m.id))
-        if (foldSelectedMsg) {
-          activeNodeId = foldSelectedMsg.id
+        // Original active was skipped; prefer the context selection, then the
+        // fold-view selection, among migrated messages
+        const selectedMsg =
+          oldMessages.find((m) => m.useful && migratedIds.has(m.id)) ??
+          oldMessages.find((m) => m.foldSelected && migratedIds.has(m.id))
+        if (selectedMsg) {
+          activeNodeId = selectedMsg.id
         } else {
           // Fallback to last migrated message
           activeNodeId = newMessages[newMessages.length - 1].id

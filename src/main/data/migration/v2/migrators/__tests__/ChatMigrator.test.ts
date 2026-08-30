@@ -318,6 +318,73 @@ describe('ChatMigrator.prepareTopicData', () => {
     expect(msgMap.get('a2')?.parentId).toBe('prev')
   })
 
+  it('anchors the thread on the useful-marked response of a multi-model group', async () => {
+    // v1: user @-mentioned 3 models and thumbs-upped a2 as the context for
+    // the follow-up. Migration must keep u2 hanging off a2 (v1
+    // filterUsefulMessages kept the useful-marked response as context).
+    const b1 = block('b1', 'u1')
+    const b2 = block('b2', 'a1')
+    const b3 = block('b3', 'a2')
+    const b4 = block('b4', 'a3')
+    const b5 = block('b5', 'u2')
+    const messages = [
+      msg('u1', 'user', ['b1']),
+      msg('a1', 'assistant', ['b2'], {
+        askId: 'u1',
+        model: { id: 'model-a', name: 'Model A', provider: 'prov-a', group: 'a' }
+      }),
+      msg('a2', 'assistant', ['b3'], {
+        askId: 'u1',
+        useful: true,
+        model: { id: 'model-b', name: 'Model B', provider: 'prov-b', group: 'b' }
+      }),
+      msg('a3', 'assistant', ['b4'], {
+        askId: 'u1',
+        model: { id: 'model-c', name: 'Model C', provider: 'prov-c', group: 'c' }
+      }),
+      msg('u2', 'user', ['b5'])
+    ]
+
+    const result = await prepareTopic(topic('t1', messages), [b1, b2, b3, b4, b5])
+
+    expect(result).not.toBeNull()
+    const msgMap = toMsgMap(result?.messages ?? [])
+    // u2 hangs off the useful response (a2), not the last sibling (a3)
+    expect(msgMap.get('u2')?.parentId).toBe('a2')
+    // Active path ends at u2, whose incoming edge goes through a2
+    expect(result?.topic.activeNodeId).toBe('u2')
+  })
+
+  it('sets activeNodeId to the useful-marked response when the group is the last turn', async () => {
+    // Same selection, but the multi-model group is the topic's last turn —
+    // the active node must be the selected response, not the last sibling
+    const b1 = block('b1', 'u1')
+    const b2 = block('b2', 'a1')
+    const b3 = block('b3', 'a2')
+    const b4 = block('b4', 'a3')
+    const messages = [
+      msg('u1', 'user', ['b1']),
+      msg('a1', 'assistant', ['b2'], {
+        askId: 'u1',
+        model: { id: 'model-a', name: 'Model A', provider: 'prov-a', group: 'a' }
+      }),
+      msg('a2', 'assistant', ['b3'], {
+        askId: 'u1',
+        useful: true,
+        model: { id: 'model-b', name: 'Model B', provider: 'prov-b', group: 'b' }
+      }),
+      msg('a3', 'assistant', ['b4'], {
+        askId: 'u1',
+        model: { id: 'model-c', name: 'Model C', provider: 'prov-c', group: 'c' }
+      })
+    ]
+
+    const result = await prepareTopic(topic('t1', messages), [b1, b2, b3, b4])
+
+    expect(result).not.toBeNull()
+    expect(result?.topic.activeNodeId).toBe('a2')
+  })
+
   it('produces no dangling parentId across mixed edge cases', async () => {
     // Mix of all edge cases: deleted askId target, missing blocks, valid messages
     const b1 = block('b1', 'u1')
